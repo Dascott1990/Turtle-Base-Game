@@ -1,184 +1,145 @@
-import turtle
+import pygame
 import random
-import time
+
+# Initialize Pygame
+pygame.init()
 
 # --- Screen Setup ---
-screen = turtle.Screen()
-screen.title("Breakout Game")
-screen.bgcolor("black")
-screen.setup(width=800, height=600)
-screen.tracer(0)  # Disable automatic screen updates
+screen_width = 800
+screen_height = 600
+screen = pygame.display.set_mode((screen_width, screen_height))
+pygame.display.set_caption("Breakout Game")
+
+# --- Colors ---
+BLACK = (0, 0, 0)
+WHITE = (255, 255, 255)
+RED = (255, 0, 0)
+BLUE = (0, 0, 255)
 
 # --- Paddle ---
-paddle = turtle.Turtle()
-paddle.shape("square")
-paddle.color("white")
-paddle.shapesize(stretch_wid=1, stretch_len=5)
-paddle.penup()
-paddle.goto(0, -250)
+paddle_width = 100
+paddle_height = 15
+paddle_speed = 15
+paddle_y = screen_height - paddle_height - 10  # Fix paddle position near the bottom
 
 # --- Ball ---
-ball = turtle.Turtle()
-ball.shape("circle")
-ball.color("red")
-ball.penup()
-ball.goto(0, -200)
-ball.dx = 3
-ball.dy = 3
-
-# --- Score Display ---
-score_display = turtle.Turtle()
-score_display.color("white")
-score_display.penup()
-score_display.hideturtle()
-score_display.goto(0, 260)
-
-# --- Lives Display ---
-lives_display = turtle.Turtle()
-lives_display.color("white")
-lives_display.penup()
-lives_display.hideturtle()
-lives_display.goto(-350, 260)
+ball_radius = 10
+ball_x = screen_width // 2
+ball_y = screen_height // 2
+ball_dx = 4
+ball_dy = -4
 
 # --- Bricks ---
+brick_width = 60
+brick_height = 20
 bricks = []
+brick_rows = 5
+brick_columns = 10
 
-def create_bricks(rows, columns):
-    """Create bricks in a grid."""
-    x_start, y_start = -350, 250
-    for row in range(rows):
-        for col in range(columns):
-            brick = turtle.Turtle()
-            brick.shape("square")
-            brick.color(random.choice(["blue", "green", "yellow", "purple"]))
-            brick.shapesize(stretch_wid=1, stretch_len=2)
-            brick.penup()
-            brick.goto(x_start + col * 80, y_start - row * 30)
-            bricks.append(brick)
+# --- Score ---
+score = 0
+font = pygame.font.SysFont(None, 36)
 
-# --- Paddle Movement ---
-def move_left():
-    x = paddle.xcor() - 20
-    if x > -360:
-        paddle.setx(x)
+# --- Functions ---
 
-def move_right():
-    x = paddle.xcor() + 20
-    if x < 360:
-        paddle.setx(x)
+# Draw the paddle
+def draw_paddle(x, y):
+    pygame.draw.rect(screen, WHITE, (x, y, paddle_width, paddle_height))
 
-screen.listen()
-screen.onkeypress(move_left, "Left")
-screen.onkeypress(move_right, "Right")
+# Draw the ball
+def draw_ball(x, y):
+    pygame.draw.circle(screen, RED, (x, y), ball_radius)
 
-# --- Game Variables ---
-game_paused = False
-total_score = 0
-lives = 3
+# Draw the bricks
+def create_bricks():
+    global bricks
+    bricks = []
+    for row in range(brick_rows):
+        for col in range(brick_columns):
+            brick_x = col * (brick_width + 10) + 50
+            brick_y = row * (brick_height + 5) + 50
+            bricks.append(pygame.Rect(brick_x, brick_y, brick_width, brick_height))
 
-# --- Update Score and Lives ---
-def update_score_and_lives():
-    score_display.clear()
-    score_display.write(f"Score: {total_score}", align="center", font=("Courier", 24, "normal"))
-    lives_display.clear()
-    lives_display.write(f"Lives: {lives}", align="center", font=("Courier", 24, "normal"))
-
-# --- Play a Single Round ---
-def play_round(level):
-    global total_score, lives, ball, bricks
-
-    # Level configurations
-    rows, columns = level + 2, 7 + level
-    ball.dx, ball.dy = 3 + level, 3 + level
-
-    # Reset bricks and ball
+def draw_bricks():
     for brick in bricks:
-        brick.hideturtle()
-    bricks.clear()
-    create_bricks(rows, columns)
-    ball.goto(0, -200)
-    ball.dx = random.choice([-ball.dx, ball.dx])
-    ball.dy = abs(ball.dy)
+        pygame.draw.rect(screen, BLUE, brick)
 
-    # Main game loop
-    game_on = True
-    while game_on:
-        screen.update()
-        if not game_paused:
-            ball.setx(ball.xcor() + ball.dx)
-            ball.sety(ball.ycor() + ball.dy)
+# Display score
+def display_score():
+    score_text = font.render(f"Score: {score}", True, WHITE)
+    screen.blit(score_text, (10, 10))
 
-            # Ball collision with walls
-            if ball.xcor() > 390 or ball.xcor() < -390:
-                ball.dx *= -1
-            if ball.ycor() > 290:
-                ball.dy *= -1
+# --- Game Loop ---
+def game_loop():
+    global paddle_x, ball_x, ball_y, ball_dx, ball_dy, score
 
-            # Ball collision with paddle
-            if (ball.ycor() < -240 and paddle.xcor() - 50 < ball.xcor() < paddle.xcor() + 50):
-                ball.dy *= -1
+    running = True
+    clock = pygame.time.Clock()
 
-            # Ball collision with bricks
-            for brick in bricks[:]:
-                if brick.distance(ball) < 25:
-                    brick.hideturtle()  # Hide brick when hit
-                    bricks.remove(brick)
-                    total_score += 10
-                    update_score_and_lives()
-                    ball.dy *= -1
-                    break  # Break to prevent multiple collisions
+    create_bricks()
 
-            # Game Over Conditions
-            if ball.ycor() < -290:
-                lives -= 1
-                update_score_and_lives()
-                if lives == 0:
-                    game_on = False
-                else:
-                    ball.goto(0, -200)
-                    ball.dx = random.choice([-ball.dx, ball.dx])
-                    ball.dy = abs(ball.dy)
+    while running:
+        screen.fill(BLACK)
 
-            if not bricks:
-                game_on = False
+        # Check for events (keyboard, quitting, mouse)
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
 
-# --- Main Game ---
-def play_game():
-    global total_score, lives
-    total_score = 0
-    lives = 3
-    update_score_and_lives()
+        # Get the mouse position for paddle movement
+        mouse_x, _ = pygame.mouse.get_pos()  # Get the x-coordinate of the mouse
+        paddle_x = mouse_x - paddle_width // 2  # Keep paddle centered with the mouse
 
-    # Game Intro
-    score_display.clear()
-    score_display.write("Press 'Left' or 'Right' to Move the Paddle", align="center", font=("Courier", 18, "normal"))
-    time.sleep(2)
+        # Ensure the paddle stays within screen bounds
+        if paddle_x < 0:
+            paddle_x = 0
+        if paddle_x > screen_width - paddle_width:
+            paddle_x = screen_width - paddle_width
 
-    for level in range(1, 4):  # Three levels
-        score_display.clear()
-        score_display.write(f"Level {level} Start!", align="center", font=("Courier", 24, "normal"))
-        time.sleep(2)
-        play_round(level)
-        if lives == 0:
-            break
+        # Update ball position
+        ball_x += ball_dx
+        ball_y += ball_dy
 
-    # Game Over Screen
-    score_display.clear()
-    score_display.write(f"Game Over! Final Score: {total_score}\nPress 'R' to Restart",
-                        align="center", font=("Courier", 24, "normal"))
+        # Ball collision with walls
+        if ball_x <= 0 or ball_x >= screen_width:
+            ball_dx *= -1
+        if ball_y <= 0:
+            ball_dy *= -1
 
-# --- Restart Game ---
-def restart_game():
-    global total_score, lives, bricks
-    total_score = 0
-    lives = 3
-    bricks.clear()
-    play_game()
+        # Ball collision with paddle
+        if paddle_y <= ball_y + ball_radius <= paddle_y + paddle_height and paddle_x <= ball_x <= paddle_x + paddle_width:
+            ball_dy *= -1
+            score += 10
 
-screen.onkeypress(restart_game, "r")
+        # Ball collision with bricks
+        for brick in bricks:
+            if brick.collidepoint(ball_x, ball_y):
+                ball_dy *= -1
+                bricks.remove(brick)
+                score += 20
+                break
 
-# --- Start Game ---
-play_game()
+        # Game Over condition
+        if ball_y >= screen_height:
+            running = False
+            print("Game Over!")
+            print(f"Final Score: {score}")
 
-# Keep screen open
-screen.mainloop()
+        # Draw everything
+        draw_paddle(paddle_x, paddle_y)
+        draw_ball(ball_x, ball_y)
+        draw_bricks()
+        display_score()
+
+        # Display "PLAY" status (since we don't have a pause function in this version)
+        play_text = font.render("PLAY", True, WHITE)
+        screen.blit(play_text, (screen_width // 2 - 40, screen_height // 2 - 20))
+
+        pygame.display.update()
+
+        clock.tick(60)
+
+    pygame.quit()
+
+# --- Start the Game ---
+game_loop()
