@@ -15,6 +15,8 @@ BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 RED = (255, 0, 0)
 SHADOW_COLOR = (50, 50, 50)  # Dark gray for the shadow
+BLUE = (0, 0, 255)  # Define blue color
+
 
 # --- Paddle ---
 paddle_width = 100
@@ -51,7 +53,7 @@ animation_time = 0
 
 # Draw the paddle
 def draw_paddle(x, y):
-    pygame.draw.rect(screen, WHITE, (x, y, paddle_width, paddle_height))
+    pygame.draw.rect(screen, SHADOW_COLOR, (x, y, paddle_width, paddle_height))
 
 
 # Draw the ball
